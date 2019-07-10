@@ -1,0 +1,9 @@
+{
+		"mongodb": {
+			"user": "admin",
+			"password": "QGFsW8Ox7L2wwAWK",
+			"server": "cluster0-cd4g5.mongodb.net/test?",
+			"port": "xxxx",
+			"endpoint": "mongodb+srv://admin:QGFsW8Ox7L2wwAWK@cluster0-cd4g5.mongodb.net/test?retryWrites=true&w=majority"
+	}
+}

@@ -1,0 +1,9 @@
+{
+		"rabbitmq": {
+			"user": "test",
+			"password": "test",
+			"server": "localhost",
+			"port": "5672",
+			"endpoint": "amqp://guest.guest@localhost:15672/"
+		}
+}
