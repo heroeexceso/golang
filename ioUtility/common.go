@@ -2,18 +2,12 @@ package ioutility
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"os"
 
 	"github.com/heroeexceso/golang/logutility"
 	"gopkg.in/yaml.v2" //"gopkg.in/yaml.v2"
 )
-
-// GetExceptionError ... obtener el mensaje de error formateado
-func GetExceptionError(err error, text string) error {
-	return errors.New(text + ": " + err.Error())
-}
 
 // GetContentFile ... obtener el contenido de un archivo
 func GetContentFile(fileName string) (string, error) {
@@ -22,7 +16,7 @@ func GetContentFile(fileName string) (string, error) {
 	bytesReaded, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		//logutility.FailOnError(err, "GetContentFile:")
-		return "", GetExceptionError(err, "GetContentFile")
+		return "", logutility.GetExceptionError(err, "GetContentFile")
 	}
 
 	//  Obtener el contenido del mismo para informarlo.-

@@ -30,7 +30,7 @@ const fileNameJSON = "../mongodb/configuration.json"
 const fileNameYaml = "../mongodb/configuration.yaml"
 const logInfo = false
 const isJSON = true
-const cantMaxima = 5
+const cantMaxima = 10
 
 // getDatabaseEndPoint ... sirve para obtener la cadena de conexión a la Base de Datos
 func getDatabaseEndPoint() (string, error) {
@@ -57,11 +57,11 @@ func getDatabaseEndPoint() (string, error) {
 		}
 	}
 
-	return "", ioutility.GetExceptionError(err, "GetQueueEndPoint")
+	return "", logutility.GetExceptionError(err, "GetQueueEndPoint")
 }
 
 // ConnectDB ... sirve para realizar la conexión a la Base de Datos
-func ConnectDB() (*mongo.Client, error) {
+func connectDB() (*mongo.Client, error) {
 	var client *mongo.Client
 
 	//	Obtener el EndPoint (isJson = true).-
@@ -85,60 +85,17 @@ func ConnectDB() (*mongo.Client, error) {
 	}
 	logutility.PrintMessage(err.Error())
 
-	return client, ioutility.GetExceptionError(err, "ConnectDB")
+	return client, logutility.GetExceptionError(err, "ConnectDB")
 }
 
-// GetDocumentByID ... obtener un documento (por ID) de la Base de Datos
-func GetDocumentByID(databaseName string, collectionName string, ID string, document interface{}) (interface{}, error) {
-
-	//	Configurar el filtro a utilizar.-
-	//filter := bson.D{primitive.E{Key: "_id", Value: ID}}
-	filter := bson.D{primitive.E{Key: "brand", Value: "ALCO"}}
-
-	newDocument, err := getDocument(databaseName, collectionName, filter, document)
-	if err != nil {
-		return nil, err
-	}
-
-	return newDocument, nil
-}
-
-// getDocument ... obtener un documento de la Base de Datos
-func getDocument(databaseName string, collectionName string, filter interface{}, document interface{}) (interface{}, error) {
-
-	//	Conectar a la Base de Datos.-
-	client, err := ConnectDB()
-	if err != nil {
-		return nil, ioutility.GetExceptionError(err, "getDocument.ConnectDB")
-	}
-
-	//	Configurar la base de datos y colección a utilizar.-
-	collection := client.Database(databaseName).Collection(collectionName)
-
-	//	Configurar el filtro a utilizar.-
-
-	//	Obtener el documento.-
-	err = collection.FindOne(context.TODO(), filter).Decode(&document)
-	if err != nil {
-		return nil, ioutility.GetExceptionError(err, "getDocument.FindOne")
-	}
-
-	//	Desconectar de la Base de Datos.-
-	err = client.Disconnect(context.TODO())
-	if err != nil {
-		return nil, ioutility.GetExceptionError(err, "getDocument.Disconnect")
-	}
-	return document, nil
-}
-
-// GetDocuments ... obtener un documento de la Base de Datos
-func GetDocuments(databaseName string, collectionName string, document interface{}) ([]interface{}, error) {
+// GetDocuments ... todos los documentos de la Base de Datos
+func GetDocuments(databaseName string, collectionName string, filter interface{}, document interface{}) ([]interface{}, error) {
 	var curr *mongo.Cursor
 
 	//	Conectar a la Base de Datos.-
-	client, err := ConnectDB()
+	client, err := connectDB()
 	if err != nil {
-		return nil, ioutility.GetExceptionError(err, "GetDocuments.ConnectDB")
+		return nil, logutility.GetExceptionError(err, "GetDocuments.ConnectDB")
 	}
 
 	//	Configurar la base de datos y colección a utilizar.-
@@ -149,14 +106,21 @@ func GetDocuments(databaseName string, collectionName string, document interface
 	findOptions.SetLimit(cantMaxima)
 
 	//	Obtener el documento.-
-	curr, err = collection.Find(context.TODO(), bson.D{{}}, findOptions)
+	//curr, err = collection.Find(context.TODO(), bson.D{{}}, findOptions)
+	curr, err = collection.Find(context.TODO(), filter, findOptions)
 	if err != nil {
-		return nil, ioutility.GetExceptionError(err, "GetDocuments.Find")
+		return nil, logutility.GetExceptionError(err, "GetDocuments.Find")
 	}
 
 	//	Completar el array.-
 	var documents []interface{}
+
+	incluteItems := false
+
 	for curr.Next(context.TODO()) {
+		if incluteItems == false {
+			incluteItems = true
+		}
 		err = curr.Decode(&document)
 		if err == nil {
 			documents = append(documents, document)
@@ -169,7 +133,11 @@ func GetDocuments(databaseName string, collectionName string, document interface
 	//	Desconectar de la Base de Datos.-
 	err = client.Disconnect(context.TODO())
 	if err != nil {
-		return nil, ioutility.GetExceptionError(err, "GetDocuments.Disconnect")
+		return nil, logutility.GetExceptionError(err, "GetDocuments.Disconnect")
+	}
+
+	if incluteItems == false {
+		return nil, logutility.GetExceptionText("No se han encontrado documentos con los criterios recibidos.")
 	}
 
 	return documents, nil
@@ -179,9 +147,9 @@ func GetDocuments(databaseName string, collectionName string, document interface
 func InsertDocument(databaseName string, collectionName string, document interface{}) error {
 
 	//	Conectar a la Base de Datos.-
-	client, err := ConnectDB()
+	client, err := connectDB()
 	if err != nil {
-		return ioutility.GetExceptionError(err, "InsertDocument.ConnectDB")
+		return logutility.GetExceptionError(err, "InsertDocument.ConnectDB")
 	}
 
 	//	Configurar la base de datos y colección a utilizar.-
@@ -191,7 +159,7 @@ func InsertDocument(databaseName string, collectionName string, document interfa
 	_, err = collection.InsertOne(context.TODO(), document)
 	//insertResult, err := collection.InsertOne(context.TODO(), document)
 	if err != nil {
-		return ioutility.GetExceptionError(err, "InsertDocument.InsertOne")
+		return logutility.GetExceptionError(err, "InsertDocument.InsertOne")
 	}
 
 	//	Obtener el ID generado.-
@@ -200,53 +168,67 @@ func InsertDocument(databaseName string, collectionName string, document interfa
 	//	Desconectar de la Base de Datos.-
 	err = client.Disconnect(context.TODO())
 	if err != nil {
-		return ioutility.GetExceptionError(err, "InsertDocument.Disconnect")
+		return logutility.GetExceptionError(err, "InsertDocument.Disconnect")
 	}
 	return nil
 }
 
-// UpdateDocumentByID ... actualizar un documento (por ID) de la Base de Datos
-func UpdateDocumentByID(databaseName string, collectionName string, ID string, document interface{}) (int64, error) {
-
-	//	Configurar el filtro a utilizar.-
-	filter := bson.D{primitive.E{Key: "_id", Value: ID}}
-	update := bson.D{primitive.E{Key: "model", Value: "Coupe Megane"}, {Key: "brand", Value: "Renault"}, {Key: "year", Value: 2000}}
-
-	//"$set"
-
-	matchedCount, err := updateDocument(databaseName, collectionName, filter, update)
-	if err != nil {
-		return 0, ioutility.GetExceptionError(err, "UpdateDocumentById.UpdateDocument")
-	}
-
-	return matchedCount, err
-}
-
-// updateDocument ... actualizar un documento en la Base de Datos
-func updateDocument(databaseName string, collectionName string, filter interface{}, update interface{}) (int64, error) {
+// UpdateDocument ... actualizar un documento en la Base de Datos
+func UpdateDocument(databaseName string, collectionName string, filter interface{}, update interface{}) (int64, error) {
 	var updateResult *mongo.UpdateResult
 
 	//	Conectar a la Base de Datos.-
-	client, err := ConnectDB()
+	client, err := connectDB()
 	if err != nil {
-		return 0, ioutility.GetExceptionError(err, "UpdateDocument.ConnectDB")
+		return 0, logutility.GetExceptionError(err, "UpdateDocument.ConnectDB")
 	}
 
 	//	Configurar la base de datos y colección a utilizar.-
 	collection := client.Database(databaseName).Collection(collectionName)
 
-	//	Insertar el nuevo valor en la base de datos.-
-	updateResult, err = collection.UpdateOne(context.TODO(), filter, update)
+	newUpdate := bson.D{primitive.E{"$set", update}}
+
+	//	Actualizar el valor en la base de datos.-
+	updateResult, err = collection.UpdateOne(context.TODO(), filter, newUpdate)
 	if err != nil {
-		return 0, ioutility.GetExceptionError(err, "UpdateDocument.UpdateOne")
+		return 0, logutility.GetExceptionError(err, "UpdateDocument.UpdateOne")
 	}
 
-	matchedCount := updateResult.MatchedCount
+	updatedCount := updateResult.MatchedCount
 
 	//	Desconectar de la Base de Datos.-
 	err = client.Disconnect(context.TODO())
 	if err != nil {
-		return 0, ioutility.GetExceptionError(err, "UpdateDocument.Disconnect")
+		return 0, logutility.GetExceptionError(err, "UpdateDocument.Disconnect")
 	}
-	return matchedCount, nil
+	return updatedCount, nil
+}
+
+// DeleteDocument ... actualizar un documento en la Base de Datos
+func DeleteDocument(databaseName string, collectionName string, filter interface{}) (int64, error) {
+	var deleteResult *mongo.DeleteResult
+
+	//	Conectar a la Base de Datos.-
+	client, err := connectDB()
+	if err != nil {
+		return 0, logutility.GetExceptionError(err, "DeleteDocument.ConnectDB")
+	}
+
+	//	Configurar la base de datos y colección a utilizar.-
+	collection := client.Database(databaseName).Collection(collectionName)
+
+	//	Eliminar el valor de la base de datos.-
+	deleteResult, err = collection.DeleteOne(context.TODO(), filter)
+	if err != nil {
+		return 0, logutility.GetExceptionError(err, "DeleteDocument.UpdateOne")
+	}
+
+	deletedCount := deleteResult.DeletedCount
+
+	//	Desconectar de la Base de Datos.-
+	err = client.Disconnect(context.TODO())
+	if err != nil {
+		return 0, logutility.GetExceptionError(err, "DeleteDocument.Disconnect")
+	}
+	return deletedCount, nil
 }

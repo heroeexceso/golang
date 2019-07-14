@@ -1,12 +1,23 @@
 package logutility
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/heroeexceso/golang/httputility"
 )
+
+// GetExceptionError ... obtener el mensaje de error formateado
+func GetExceptionError(err error, text string) error {
+	return errors.New(text + ": " + err.Error())
+}
+
+// GetExceptionText ... obtener el mensaje de error formateado
+func GetExceptionText(text string) error {
+	return errors.New(text)
+}
 
 // FailOnError ... devolver un mensaje de error en pantalla
 func FailOnError(err error, value string) {
